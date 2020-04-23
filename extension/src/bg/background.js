@@ -71,18 +71,18 @@ chrome.tabs.onActivated.addListener(({tabId, windowId}) => {
  *
  * Update the badge icon based on the overall WebVitals
  * pass rate (i.e good = green icon, poor = red icon)
- * @param {String} badgeCategory - GOOD or POOR
+ * @param {Boolean} passesOverall - true/false
  * @param {Number} tabid
  */
-function badgeOverallPerf(badgeCategory, tabid) {
+function badgeOverallPerf(passesOverall, tabid) {
   chrome.tabs.query({
     active: true,
     currentWindow: true,
   }, function(tabs) {
     const currentTab = tabid || tabs[0].id;
 
-    switch (badgeCategory) {
-      case 'POOR':
+    switch (passesOverall) {
+      case false:
         chrome.browserAction.setIcon({
           path: '../../icons/slow128w.png',
           tabId: currentTab,
@@ -92,7 +92,7 @@ function badgeOverallPerf(badgeCategory, tabid) {
           tabId: currentTab,
         });
         break;
-      case 'GOOD':
+      case true:
         chrome.browserAction.setIcon({
           path: '../../icons/fast128w.png',
           tabId: currentTab,
@@ -226,11 +226,12 @@ function wait(ms) {
  * @param {Number} tabId
  */
 async function animateBadges(request, tabId) {
+  console.log('animatebadges',arguments);
   const delay = 2000;
   // First badge overall perf
-  badgeOverallPerf(request.webVitalsScoreBucket, tabId);
+  badgeOverallPerf(request.passesAllThresholds, tabId);
   // If perf is poor, animate the sequence
-  if (request.webVitalsScoreBucket === 'POOR') {
+  if (request.passesAllThresholds === false) {
     await wait(delay);
     badgeMetric('lcp', request.metrics.lcp.value, tabId);
     await wait(delay);
@@ -243,7 +244,7 @@ async function animateBadges(request, tabId) {
 
 // message from content script
 chrome.runtime.onMessage.addListener((request, sender, response) => {
-  if (request.webVitalsScoreBucket !== undefined) {
+  //if (request.passesAllThresholds !== undefined) {
     // e.g webVitalsScoreBucket === 'GOOD' => green badge
     animateBadges(request, sender.tab.id);
     // also pass the WebVitals metrics on to PSI for when
@@ -254,5 +255,5 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
       const key = hashCode(sender.tab.url);
       chrome.storage.local.set({[key]: request.metrics});
     }
-  }
+  //}
 });

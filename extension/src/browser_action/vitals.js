@@ -34,26 +34,30 @@
     },
   };
 
-  /**
+ /**
     * Very simple classifier for metrics values
     * @param  {Object} metrics
-    * @return {String} overall metrics score
+    * @return {Boolean} overall metrics pass/fail
   */
   function scoreBadgeMetrics(metrics) {
-    let bucket = 'GOOD';
-    if (metrics.lcp.value > 2500) {
-      bucket = 'POOR';
-      metrics.lcp.pass = false;
-    }
-    if (metrics.fid.value > 100) {
-      bucket = 'POOR';
-      metrics.fid.pass = false;
-    }
-    if (metrics.cls.value > 0.1) {
-      bucket = 'POOR';
-      metrics.cls.pass = false;
-    }
-    return bucket;
+      let passingOverall = true;
+      if (metrics.lcp.value > 2500) {
+        passingOverall = false;
+        metrics.lcp.pass = false;
+      }
+      if (metrics.fid.value > 100) {
+        passingOverall = false;
+        metrics.fid.pass = false;
+      }
+      if (metrics.fid.final === false) {
+        passingOverall = false;
+        metrics.fid.pass = false;
+      }
+      if (metrics.cls.value > 0.1) {
+        passingOverall = false;
+        metrics.cls.pass = false;
+      }
+      return passingOverall;
   }
 
   /**
@@ -90,28 +94,20 @@
      * is enabled.
      * @param {Object} body
      */
-  function broadcastMetricsUpdates(body) {
-    let metric = '';
-    if (body.entries[0].entryType === 'largest-contentful-paint') {
-      metric = 'lcp';
-    }
-    if (body.entries[0].entryType === 'first-input') {
-      metric = 'fid';
-    }
-    if (body.entries[0].entryType === 'layout-shift') {
-      metric = 'cls';
-    }
-    badgeMetrics[metric].value = body.value;
-    badgeMetrics[metric].final = body.isFinal;
-    const scoreBucket = scoreBadgeMetrics(badgeMetrics);
-
-    // Broadcast metrics updates for badging
-    chrome.runtime.sendMessage({
-      webVitalsScoreBucket: scoreBucket,
-      metrics: badgeMetrics,
-    });
-    // TODO: Once the metrics are final, cache locally.
-    drawOverlay(badgeMetrics);
+  function broadcastMetricsUpdates(metricName, body) {
+    //if (metricName !== '') {
+        badgeMetrics[metricName].value = body.value;
+        badgeMetrics[metricName].final = body.isFinal;
+        let passes = scoreBadgeMetrics(badgeMetrics);
+    
+        // Broadcast metrics updates for badging
+        chrome.runtime.sendMessage({
+          passesAllThresholds: passes,
+          metrics: badgeMetrics,
+        });
+        // TODO: Once the metrics are final, cache locally.
+        drawOverlay(badgeMetrics);
+    //}
   }
 
   /**
@@ -119,9 +115,15 @@
  * Fetches Web Vitals metrics via WebVitals.js
  */
   function fetchWebPerfMetrics() {
-    webVitals.getCLS(broadcastMetricsUpdates, true);
-    webVitals.getLCP(broadcastMetricsUpdates, true);
-    webVitals.getFID(broadcastMetricsUpdates, true);
+    webVitals.getCLS((metric) => {
+        broadcastMetricsUpdates('cls', metric)
+    }, true);
+    webVitals.getLCP((metric) => {
+        broadcastMetricsUpdates('lcp', metric)
+    }, true);
+    webVitals.getFID((metric) => {
+        broadcastMetricsUpdates('fid', metric)
+    }, true);
   }
 
   /**
