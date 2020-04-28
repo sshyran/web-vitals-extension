@@ -16,6 +16,9 @@ const LCP_THRESHOLD = 2500;
 const FID_THRESHOLD = 100;
 const CLS_THRESHOLD = 0.1;
 
+// Was the tab backgrounded during load?
+let wasBackgrounded = false;
+
 /**
  * Hash the URL and return a numeric hash as a String to be used as the key
  * @param {String} str
@@ -265,11 +268,22 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
     animateBadges(request, sender.tab.id);
     // also pass the WebVitals metrics on to PSI for when
     // the badge icon is clicked and the pop-up opens.
+    // Add whether the tab was backgrounded at some point...
+    request.metrics.wasBackgrounded = wasBackgrounded;
     passVitalsToPSI(request.metrics);
     // Store latest metrics locally only
     if (sender.tab.url) {
       const key = hashCode(sender.tab.url);
       chrome.storage.local.set({[key]: request.metrics});
+    }
+  }
+});
+
+chrome.tabs.onUpdated.addListener((tabId, {status}, tab) => {
+  if (status == 'loading') {
+    // Tab has not finished loading yet
+    if (tab.active == false) {
+      wasBackgrounded = true;
     }
   }
 });

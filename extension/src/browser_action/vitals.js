@@ -36,7 +36,7 @@
       value: 0,
       final: false,
       pass: true,
-    },
+    }
   };
 
   /**

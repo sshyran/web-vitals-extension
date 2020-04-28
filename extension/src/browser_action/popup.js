@@ -110,6 +110,7 @@ function buildLocalMetricsTemplate(metrics) {
             <span class="lh-metric__title">Largest Contentful Paint <span class="lh-metric-state">${metrics.lcp.final ? '(final)' : '(not final)'}</span></span>
             <div class="lh-metric__value">${(metrics.lcp.value/1000).toFixed(2)}&nbsp;s</div>
           </div>
+          <span style="margin-left:24px; color: var(--color-gray-700);"  ${metrics.wasBackgrounded? '':'hidden'}>Value inflated as tab loaded in the background</span>
         </div>
         <div class="lh-metric lh-metric--${metrics.fid.pass ? 'pass':'fail'}">
           <div class="lh-metric__innerwrap">
